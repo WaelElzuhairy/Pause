@@ -10,12 +10,17 @@ import {
 import { ANALYZE_SYSTEM, buildAnalyzePrompt } from "./prompts/analyze";
 import { CHECKIN_SYSTEM, buildCheckinPrompt } from "./prompts/checkin";
 import { INSIGHT_SYSTEM, buildInsightPrompt } from "./prompts/insight";
+import { INCIDENT_SYSTEM, buildIncidentPrompt, normalizeTimeline } from "./prompts/incident";
+import { buildAssistantSystem, buildAssistantPrompt } from "./prompts/assistant";
 import {
   AnalyzeMessageSchema,
   CheckInSchema,
   AnalysisResultSchema,
   CheckInResultSchema,
   InsightItemSchema,
+  AnalyzeIncidentSchema,
+  IncidentReportSchema,
+  ChatAssistantSchema,
 } from "./schemas";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
@@ -175,6 +180,121 @@ export const generateInsight = onCall(
       });
 
     return { insights };
+  }
+);
+
+// ── analyzeIncident ───────────────────────────────────────────────────────────
+
+export const analyzeIncident = onCall(
+  { region: REGION },
+  async (request: CallableRequest) => {
+    const uid = requireAuth(request);
+    const { entries, gender } = AnalyzeIncidentSchema.parse(request.data);
+
+    const ai = getProvider();
+    const raw = await ai.generate({
+      system: INCIDENT_SYSTEM,
+      user: buildIncidentPrompt(entries, gender ?? "unspecified"),
+      json: true,
+      maxTokens: 1024,
+    });
+
+    const report = parseJSON(raw, IncidentReportSchema);
+
+    // Post-process: normalize timeline (remove any relative time words)
+    report.timeline = normalizeTimeline(report.timeline);
+
+    // Map authority type → real entity name (never trust AI to name these)
+    const AUTHORITY_NAME: Record<string, string> = {
+      police: "Ministry of Interior Egypt",
+      legal: "Public Prosecution Egypt",
+      telecom: "National Telecom Regulatory Authority",
+      none: "No specific authority required at this stage",
+    };
+
+    const vaultId =
+      "MS-" +
+      new Date().getFullYear() +
+      "-" +
+      Math.random().toString(36).substring(2, 6).toUpperCase();
+
+    // Batch write: vault (raw) + public log + user case summary
+    const batch = db.batch();
+
+    const vaultRef = db.collection("vaulted_reports").doc();
+    batch.set(vaultRef, {
+      user_id: uid,
+      case_id: vaultId,
+      raw_entries: entries,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    const publicRef = db.collection("public_incident_logs").doc();
+    batch.set(publicRef, {
+      case_id: vaultId,
+      summary: report.summary,
+      category: report.primary_category,
+      severity: report.severity,
+      pattern: report.pattern,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    const userCaseRef = db.collection("user_cases").doc();
+    batch.set(userCaseRef, {
+      user_id: uid,
+      case_id: vaultId,
+      summary: report.summary,
+      category: report.primary_category,
+      severity: report.severity,
+      pattern: report.pattern,
+      status: "completed",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+
+    return {
+      ...report,
+      case_id: vaultId,
+      authority_name: AUTHORITY_NAME[report.recommended_authority.type],
+    };
+  }
+);
+
+// ── chatAssistant ─────────────────────────────────────────────────────────────
+
+export const chatAssistant = onCall(
+  { region: REGION },
+  async (request: CallableRequest) => {
+    const uid = requireAuth(request);
+    const { message, history, userContext } = ChatAssistantSchema.parse(
+      request.data
+    );
+
+    // Optionally pull latest check-in for context if not provided
+    let context = userContext ?? "";
+    if (!context) {
+      const snap = await db
+        .collection("users")
+        .doc(uid)
+        .collection("checkIns")
+        .orderBy("createdAt", "desc")
+        .limit(1)
+        .get();
+      if (!snap.empty) {
+        const d = snap.docs[0].data();
+        context = `Recent mood: ${d.mood} (${d.intensity}/5). ${d.note ? `Note: "${d.note}"` : ""}`;
+      }
+    }
+
+    const ai = getProvider();
+    const reply = await ai.generate({
+      system: buildAssistantSystem(context),
+      user: buildAssistantPrompt(history ?? [], message),
+      maxTokens: 512,
+    });
+
+    return { reply: reply.trim() };
   }
 );
 

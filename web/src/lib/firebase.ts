@@ -77,6 +77,50 @@ export interface CheckIn {
   createdAt: string; // ISO string from Firestore
 }
 
+export const callAnalyzeIncident = httpsCallable<
+  {
+    entries: IncidentEntry[];
+    gender?: string;
+  },
+  IncidentReport & { case_id: string; authority_name: string }
+>(functions, "analyzeIncident");
+
+export const callChatAssistant = httpsCallable<
+  {
+    message: string;
+    history?: { role: "user" | "assistant"; content: string }[];
+    userContext?: string;
+  },
+  { reply: string }
+>(functions, "chatAssistant");
+
+// Incident types
+export interface IncidentEntry {
+  entry_id: string;
+  text: string;
+  timestamp: string;
+  source: string;
+}
+
+export interface IncidentReport {
+  summary: string;
+  primary_category: string;
+  secondary_categories: string[];
+  severity: "low" | "medium" | "high" | "critical";
+  risk_level: string;
+  timeline: string[];
+  pattern: "stable" | "repeated" | "escalating";
+  recommended_actions: { action: string; priority: string }[];
+  sanitized_text: string;
+  recommended_authority: {
+    type: "police" | "legal" | "telecom" | "none";
+    reason: string;
+    action: string;
+  };
+  formal_report: string;
+  confidence: number;
+}
+
 export interface Message {
   id: string;
   originalText: string;

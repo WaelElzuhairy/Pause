@@ -6,6 +6,9 @@ const NAV = [
   { to: "/dashboard", label: "Home", icon: HomeIcon },
   { to: "/checkin", label: "Check In", icon: CheckInIcon },
   { to: "/improve", label: "Improve", icon: ImproveIcon },
+  { to: "/report", label: "Report", icon: ReportIcon },
+  { to: "/assistant", label: "Assistant", icon: AssistantIcon },
+  { to: "/scenarios", label: "Scenarios", icon: ScenariosIcon },
   { to: "/insights", label: "Insights", icon: InsightsIcon },
 ];
 
@@ -120,6 +123,36 @@ function InsightsIcon() {
       <line x1="18" y1="20" x2="18" y2="10" />
       <line x1="12" y1="20" x2="12" y2="4" />
       <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  );
+}
+
+function ReportIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  );
+}
+
+function AssistantIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4"/>
+      <path d="M12 12v8"/>
+      <path d="M8 20h8"/>
+    </svg>
+  );
+}
+
+function ScenariosIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+      <path d="M2 17l10 5 10-5"/>
+      <path d="M2 12l10 5 10-5"/>
     </svg>
   );
 }
