@@ -29,7 +29,7 @@ export function buildIncidentPrompt(entries: IncidentEntry[], gender: string): s
   return `Analyze the following multi-entry cyberbullying case (victim gender: ${gender}).
 
 Tasks:
-1. Summarize the case in 2-3 sentences — use REAL names from the entries (stored as private evidence).
+1. Write a 2-3 sentence paragraph summarizing the case — use REAL names from the entries (stored as private evidence). Do NOT repeat the messages verbatim; write a coherent paragraph describing what happened.
 2. Generate a chronological timeline — each item MUST start with YYYY-MM-DD date and use [PERSON] for attacker.
 3. Detect escalation pattern: "stable", "repeated", or "escalating".
 4. Identify the PRIMARY category (single most relevant: harassment, threat, blackmail, defamation, impersonation, other).
@@ -37,7 +37,15 @@ Tasks:
 6. Assign severity: "low", "medium", "high", or "critical".
 7. Describe risk level in a short phrase (e.g. "Legal Risk + Emotional Distress").
 8. Recommend 2-4 next actions with priority: "low", "medium", "high", or "critical" — use [PERSON] and [PLATFORM] in action text.
-9. Recommend authority type with a reason and suggested action for the victim.
+9. Recommend ONE authority type from the list below based on the case context:
+   - police: threats, blackmail, extortion, serious harassment, privacy violation, images at risk → severity high/critical
+   - legal: defamation, formal complaint needed, legal documentation, case needs prosecution → severity high/critical
+   - telecom: harassment via phone/SMS, telecom abuse → severity medium/high
+   - women_support: female victim facing harassment or gender-based abuse → severity medium/high/critical
+   - child_protection: victim is a minor, child safety concern → severity medium/high/critical
+   - mental_health: emotional distress, anxiety, psychological harm, mild cases → severity low/medium
+   - none: mild non-harmful interaction → severity low
+   Pick the MOST appropriate single type. If female victim with serious threat, prefer women_support or police over mental_health.
 10. Return sanitized_text: ALL entry text combined, with attacker name/handle replaced by [PERSON] and platform names replaced by [PLATFORM].
 11. Write a formal_report: a legal-style document for authorities — use REAL names throughout.
 12. Set confidence (0.0 to 1.0) for your analysis.
@@ -47,21 +55,21 @@ ${entriesText}
 
 Respond ONLY with a valid JSON object — no markdown, no extra text:
 {
-  "summary": "...REAL names here — private evidence record...",
+  "summary": "...2-3 sentence paragraph with REAL names — NOT verbatim messages...",
   "primary_category": "harassment | threat | blackmail | defamation | impersonation | other",
   "secondary_categories": ["..."],
   "severity": "low | medium | high | critical",
   "risk_level": "...",
   "timeline": [
-    "YYYY-MM-DD: [PERSON] event description — [PERSON] for attacker, [PLATFORM] for platforms"
+    "YYYY-MM-DD: [PERSON] event description"
   ],
   "pattern": "stable | repeated | escalating",
   "recommended_actions": [
     { "action": "...use [PERSON] and [PLATFORM]...", "priority": "low | medium | high | critical" }
   ],
-  "sanitized_text": "...all entry text with [PERSON] and [PLATFORM] replacing attacker/platform...",
+  "sanitized_text": "...all entry text with [PERSON] and [PLATFORM]...",
   "recommended_authority": {
-    "type": "police | legal | telecom | none",
+    "type": "police | legal | telecom | women_support | child_protection | mental_health | none",
     "reason": "One sentence explaining why this authority is appropriate.",
     "action": "One sentence describing what the victim should do."
   },

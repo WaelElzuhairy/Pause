@@ -209,7 +209,10 @@ export const analyzeIncident = onCall(
       police: "Ministry of Interior Egypt",
       legal: "Public Prosecution Egypt",
       telecom: "National Telecom Regulatory Authority",
-      none: "No specific authority required at this stage",
+      women_support: "National Council for Women Egypt",
+      child_protection: "National Council for Childhood and Motherhood",
+      mental_health: "General Secretariat of Mental Health",
+      none: "No authority escalation needed at this stage",
     };
 
     const vaultId =
@@ -217,13 +220,6 @@ export const analyzeIncident = onCall(
       new Date().getFullYear() +
       "-" +
       Math.random().toString(36).substring(2, 6).toUpperCase();
-
-    // Build a raw summary from actual entry text (real names — for Firestore legal record)
-    const rawSummary = entries
-      .slice(0, 2)
-      .map((e) => `[${e.timestamp}] ${e.text}`)
-      .join(" | ")
-      .substring(0, 400);
 
     // Batch write: vault (raw) + public log + user case summary
     const batch = db.batch();
@@ -248,12 +244,12 @@ export const analyzeIncident = onCall(
       createdAt: FieldValue.serverTimestamp(),
     });
 
-    // User case: store raw entry text (real names) — private to this user only
+    // User case: store AI-generated paragraph summary (real names) — private to this user
     const userCaseRef = db.collection("user_cases").doc();
     batch.set(userCaseRef, {
       user_id: uid,
       case_id: vaultId,
-      summary: rawSummary,         // real names — user's private evidence record
+      summary: report.summary,       // AI paragraph with real names — private evidence record
       primary_category: report.primary_category,
       severity: report.severity,
       pattern: report.pattern,

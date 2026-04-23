@@ -4,6 +4,8 @@ import type { IncidentEntry, IncidentReport } from "../lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
+import { EGYPT_AUTHORITIES } from "../lib/authorities";
+import type { AuthorityType } from "../lib/authorities";
 
 type FullReport = IncidentReport & { case_id: string; authority_name: string };
 
@@ -441,41 +443,88 @@ export default function IncidentReporterPage() {
                 </div>
               </div>
 
-              {/* Fix 5: Expanded Authority Section */}
-              {report.recommended_authority.type !== "none" && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col gap-2">
-                  <p className="text-xs font-semibold text-blue-800">⚖️ Recommended Authority</p>
-                  <p className="text-sm font-bold text-blue-900">{report.authority_name}</p>
-                  <div>
-                    <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide mb-0.5">
-                      Reason
-                    </p>
-                    <p className="text-xs text-blue-800">{report.recommended_authority.reason}</p>
+              {/* Authority Section — driven by EGYPT_AUTHORITIES data */}
+              {(() => {
+                const authType = report.recommended_authority.type as AuthorityType;
+                const auth = EGYPT_AUTHORITIES[authType];
+                const isNone = authType === "none";
+                return (
+                  <div className={`rounded-xl p-4 flex flex-col gap-3 border ${isNone ? "bg-gray-50 border-gray-200" : "bg-blue-50 border-blue-200"}`}>
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">{isNone ? "ℹ️" : "⚖️"}</span>
+                      <div>
+                        <p className={`text-xs font-semibold uppercase tracking-wide ${isNone ? "text-gray-600" : "text-blue-800"}`}>
+                          Recommended Authority
+                        </p>
+                        <p className={`text-sm font-bold mt-0.5 ${isNone ? "text-gray-800" : "text-blue-900"}`}>
+                          {auth.name}
+                        </p>
+                        <p className={`text-xs mt-0.5 ${isNone ? "text-gray-600" : "text-blue-700"}`}>
+                          {auth.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {!isNone && (
+                      <>
+                        <div>
+                          <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide mb-1">
+                            Why this authority?
+                          </p>
+                          <p className="text-xs text-blue-800">{report.recommended_authority.reason}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide mb-1">
+                            What you should do
+                          </p>
+                          <p className="text-xs text-blue-800">{report.recommended_authority.action}</p>
+                        </div>
+
+                        {auth.recommendedFor.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide mb-1">
+                              Recommended for
+                            </p>
+                            <ul className="flex flex-col gap-0.5">
+                              {auth.recommendedFor.map((r) => (
+                                <li key={r} className="text-xs text-blue-800 flex items-center gap-1">
+                                  <span className="text-blue-400">•</span> {r}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {auth.contact.notes && (
+                          <p className="text-[10px] text-blue-600 italic">{auth.contact.notes}</p>
+                        )}
+
+                        <div className="flex gap-2 flex-wrap mt-1">
+                          {auth.contact.phone && (
+                            <a
+                              href={`tel:${auth.contact.phone}`}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium"
+                            >
+                              📞 Call {auth.contact.phone}
+                            </a>
+                          )}
+                          {auth.contact.website && (
+                            <a
+                              href={auth.contact.website}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs px-3 py-1.5 rounded-lg border border-blue-300 text-blue-700 font-medium"
+                            >
+                              🌐 Website
+                            </a>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wide mb-0.5">
-                      Suggested Action
-                    </p>
-                    <p className="text-xs text-blue-800">{report.recommended_authority.action}</p>
-                  </div>
-                  <div className="flex gap-2 mt-1">
-                    <a
-                      href="tel:122"
-                      className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium"
-                    >
-                      📞 Call
-                    </a>
-                    <a
-                      href="https://www.interior.gov.eg"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs px-3 py-1.5 rounded-lg border border-blue-300 text-blue-700 font-medium"
-                    >
-                      🌐 Website
-                    </a>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Download */}
               {report.formal_report && (

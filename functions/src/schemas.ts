@@ -76,7 +76,7 @@ export const IncidentReportSchema = z.object({
   ),
   sanitized_text: z.string(),
   recommended_authority: z.object({
-    type: z.enum(["police", "legal", "telecom", "none"]),
+    type: z.enum(["police", "legal", "telecom", "women_support", "child_protection", "mental_health", "none"]),
     reason: z.string(),
     action: z.string(),
   }),

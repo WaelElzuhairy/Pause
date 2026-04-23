@@ -113,7 +113,7 @@ export interface IncidentReport {
   recommended_actions: { action: string; priority: string }[];
   sanitized_text: string;
   recommended_authority: {
-    type: "police" | "legal" | "telecom" | "none";
+    type: "police" | "legal" | "telecom" | "women_support" | "child_protection" | "mental_health" | "none";
     reason: string;
     action: string;
   };
