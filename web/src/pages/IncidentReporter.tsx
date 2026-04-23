@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { callAnalyzeIncident } from "../lib/firebase";
 import type { IncidentEntry, IncidentReport } from "../lib/firebase";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
 
@@ -63,6 +63,7 @@ export default function IncidentReporterPage() {
 
   const [pastCases, setPastCases] = useState<PastCase[]>([]);
   const [loadingCases, setLoadingCases] = useState(false);
+  const [casesError, setCasesError] = useState("");
 
   useEffect(() => {
     if (user) fetchPastCases();
@@ -72,28 +73,31 @@ export default function IncidentReporterPage() {
     if (!user) return;
     setLoadingCases(true);
     try {
+      // No orderBy — avoids composite index requirement. Sort client-side instead.
       const q = query(
         collection(db, "user_cases"),
-        where("user_id", "==", user.uid),
-        orderBy("createdAt", "desc")
+        where("user_id", "==", user.uid)
       );
       const snap = await getDocs(q);
-      setPastCases(
-        snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            case_id: data.case_id ?? "—",
-            summary: data.summary ?? "No summary",
-            primary_category: data.primary_category ?? data.category ?? "Unknown",
-            severity: data.severity ?? "low",
-            pattern: data.pattern ?? "stable",
-            createdAt: data.createdAt?.toDate() ?? null,
-          };
-        })
-      );
-    } catch (e) {
-      console.error(e);
+      const cases = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          case_id: data.case_id ?? "—",
+          summary: data.summary ?? "No summary",
+          primary_category: data.primary_category ?? data.category ?? "Unknown",
+          severity: data.severity ?? "low",
+          pattern: data.pattern ?? "stable",
+          createdAt: data.createdAt?.toDate() ?? null,
+        };
+      });
+      // Sort descending by date client-side
+      cases.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0));
+      setPastCases(cases);
+    } catch (e: unknown) {
+      console.error("fetchPastCases error:", e);
+      const msg = e instanceof Error ? e.message : String(e);
+      setCasesError(msg);
     } finally {
       setLoadingCases(false);
     }
@@ -334,8 +338,9 @@ export default function IncidentReporterPage() {
                 <p className="text-xs font-semibold text-[var(--color-accent)] uppercase tracking-wide mb-2">
                   Sanitized Case Summary
                 </p>
-                <p className="text-sm text-[var(--color-text)] leading-relaxed mb-3">
-                  {report.summary}
+                {/* sanitized_text has [PERSON] replacing attacker — safe to display on screen */}
+                <p className="text-sm text-[var(--color-text)] leading-relaxed mb-3 whitespace-pre-line">
+                  {report.sanitized_text}
                 </p>
 
                 {/* Fix 6: Confidence score */}
@@ -492,6 +497,10 @@ export default function IncidentReporterPage() {
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden">
             {loadingCases ? (
               <p className="text-sm text-[var(--color-text-faint)] text-center py-8">Loading cases…</p>
+            ) : casesError ? (
+              <p className="text-xs text-red-500 text-center py-8 px-4">
+                ⚠️ Could not load cases: {casesError}
+              </p>
             ) : pastCases.length === 0 ? (
               <p className="text-sm text-[var(--color-text-faint)] text-center py-8">
                 No past cases yet. Submit your first case above.
