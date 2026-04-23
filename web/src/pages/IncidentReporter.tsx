@@ -64,6 +64,7 @@ export default function IncidentReporterPage() {
   const [pastCases, setPastCases] = useState<PastCase[]>([]);
   const [loadingCases, setLoadingCases] = useState(false);
   const [casesError, setCasesError] = useState("");
+  const [expandedCaseId, setExpandedCaseId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) fetchPastCases();
@@ -521,37 +522,58 @@ export default function IncidentReporterPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pastCases.map((c) => (
-                      <tr
-                        key={c.id}
-                        className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-background)] transition-colors"
-                      >
-                        <td className="px-4 py-3 font-bold text-[var(--color-accent)]">{c.case_id}</td>
-                        <td className="px-4 py-3 text-[var(--color-text-muted)]">
-                          {c.createdAt ? c.createdAt.toLocaleDateString() : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--color-text)] max-w-[180px] truncate">
-                          {c.summary}
-                        </td>
-                        <td className="px-4 py-3 capitalize">
-                          <span className="px-2 py-0.5 rounded-md border border-[var(--color-border)] text-[var(--color-text-muted)]">
-                            {c.primary_category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-0.5 rounded-md border font-bold ${
-                              SEVERITY_COLOR[c.severity] ?? "text-gray-600 bg-gray-50 border-gray-200"
-                            }`}
+                    {pastCases.map((c) => {
+                      const isExpanded = expandedCaseId === c.id;
+                      return (
+                        <>
+                          <tr
+                            key={c.id}
+                            onClick={() => setExpandedCaseId(isExpanded ? null : c.id)}
+                            className="border-b border-[var(--color-border)] hover:bg-[var(--color-background)] transition-colors cursor-pointer select-none"
                           >
-                            {c.severity.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-[var(--color-text-muted)] capitalize">
-                          {c.pattern}
-                        </td>
-                      </tr>
-                    ))}
+                            <td className="px-4 py-3 font-bold text-[var(--color-accent)]">
+                              <span className="mr-1 text-[var(--color-text-faint)]">{isExpanded ? "▾" : "▸"}</span>
+                              {c.case_id}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                              {c.createdAt ? c.createdAt.toLocaleDateString() : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--color-text)] max-w-[180px] truncate">
+                              {c.summary}
+                            </td>
+                            <td className="px-4 py-3 capitalize">
+                              <span className="px-2 py-0.5 rounded-md border border-[var(--color-border)] text-[var(--color-text-muted)]">
+                                {c.primary_category}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-md border font-bold ${
+                                  SEVERITY_COLOR[c.severity] ?? "text-gray-600 bg-gray-50 border-gray-200"
+                                }`}
+                              >
+                                {c.severity.toUpperCase()}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-[var(--color-text-muted)] capitalize">
+                              {c.pattern}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr key={`${c.id}-expanded`} className="bg-[var(--color-background)]">
+                              <td colSpan={6} className="px-6 py-4 border-b border-[var(--color-border)]">
+                                <p className="text-[10px] font-semibold text-[var(--color-accent)] uppercase tracking-wide mb-1">
+                                  Full Case Summary
+                                </p>
+                                <p className="text-sm text-[var(--color-text)] leading-relaxed whitespace-pre-wrap">
+                                  {c.summary}
+                                </p>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
