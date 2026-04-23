@@ -218,6 +218,13 @@ export const analyzeIncident = onCall(
       "-" +
       Math.random().toString(36).substring(2, 6).toUpperCase();
 
+    // Build a raw summary from actual entry text (real names — for Firestore legal record)
+    const rawSummary = entries
+      .slice(0, 2)
+      .map((e) => `[${e.timestamp}] ${e.text}`)
+      .join(" | ")
+      .substring(0, 400);
+
     // Batch write: vault (raw) + public log + user case summary
     const batch = db.batch();
 
@@ -226,25 +233,28 @@ export const analyzeIncident = onCall(
       user_id: uid,
       case_id: vaultId,
       raw_entries: entries,
+      formal_report: report.formal_report, // real names — legal document
       createdAt: FieldValue.serverTimestamp(),
     });
 
+    // Public log: keep sanitized (no real names on public collection)
     const publicRef = db.collection("public_incident_logs").doc();
     batch.set(publicRef, {
       case_id: vaultId,
-      summary: report.summary,
+      summary: report.sanitized_text.substring(0, 300), // sanitized for public
       category: report.primary_category,
       severity: report.severity,
       pattern: report.pattern,
       createdAt: FieldValue.serverTimestamp(),
     });
 
+    // User case: store raw entry text (real names) — private to this user only
     const userCaseRef = db.collection("user_cases").doc();
     batch.set(userCaseRef, {
       user_id: uid,
       case_id: vaultId,
-      summary: report.summary,
-      category: report.primary_category,
+      summary: rawSummary,         // real names — user's private evidence record
+      primary_category: report.primary_category,
       severity: report.severity,
       pattern: report.pattern,
       status: "completed",

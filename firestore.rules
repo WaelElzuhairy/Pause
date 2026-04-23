@@ -17,5 +17,23 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
     }
+
+    // Incident Reporter — user can read their own cases (written by Cloud Function)
+    match /user_cases/{caseId} {
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow write: if false; // Cloud Function (admin SDK) only
+    }
+
+    // Vaulted reports — user can read their own vault (written by Cloud Function)
+    match /vaulted_reports/{docId} {
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+      allow write: if false; // Cloud Function (admin SDK) only
+    }
+
+    // Public incident log — authenticated users can read (anonymized, no PII)
+    match /public_incident_logs/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Cloud Function (admin SDK) only
+    }
   }
 }
