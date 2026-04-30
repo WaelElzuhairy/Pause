@@ -196,7 +196,7 @@ export const analyzeIncident = onCall(
       system: INCIDENT_SYSTEM,
       user: buildIncidentPrompt(entries, gender ?? "unspecified"),
       json: true,
-      maxTokens: 1024,
+      maxTokens: 3000, // increased for 9-section formal_report
     });
 
     const report = parseJSON(raw, IncidentReportSchema);

@@ -46,7 +46,18 @@ Tasks:
    - none: mild non-harmful interaction → severity low
    Pick the MOST appropriate single type. If female victim with serious threat, prefer women_support or police over mental_health.
 10. Return sanitized_text: ALL entry text combined, with attacker name/handle replaced by [ATTACKER], victim name (if explicitly stated) replaced by [VICTIM], and platform names replaced by [PLATFORM].
-11. Write a formal_report: a legal-style document for authorities — use REAL names throughout.
+11. Write a formal_report as a structured legal document using REAL names throughout. Include ALL of the following numbered sections with their exact headings:
+
+    1. CASE OVERVIEW — one paragraph: what happened, who was involved, date range, platform(s) used.
+    2. PARTIES INVOLVED — list the victim (describe only, no name unless given) and the attacker (real name/handle).
+    3. CHRONOLOGICAL INCIDENT NARRATIVE — detailed paragraph-form account of events in order, using exact dates and real names.
+    4. EVIDENCE SUMMARY — numbered list of each entry submitted: date, source, and full content verbatim.
+    5. PATTERN ANALYSIS — describe the escalation pattern, frequency, and progression of the behavior.
+    6. RISK ASSESSMENT — describe current and potential risks to the victim (legal, emotional, physical, reputational).
+    7. LEGAL CATEGORY & APPLICABLE LAWS — name the category of offense and cite Egyptian Cybercrime Law No. 175 of 2018 and any other applicable laws.
+    8. RECOMMENDED ACTIONS & AUTHORITY CONTACTS — list the recommended steps and the appropriate authority to contact.
+    9. DECLARATION — standard statement: "I declare that the information provided in this report is truthful and accurate to the best of my knowledge."
+
 12. Set confidence (0.0 to 1.0) for your analysis.
 
 Incident Entries:
@@ -72,7 +83,7 @@ Respond ONLY with a valid JSON object — no markdown, no extra text:
     "reason": "One sentence explaining why this authority is appropriate.",
     "action": "One sentence describing what the victim should do."
   },
-  "formal_report": "...full legal report with REAL names, dates, and incident details...",
+  "formal_report": "...full structured legal document with all 9 sections, REAL names, exact dates...",
   "confidence": 0.95
 }`;
 }
