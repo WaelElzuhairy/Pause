@@ -4,8 +4,27 @@ import type { IncidentEntry, IncidentReport } from "../lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
+import type { UniversityChoice } from "../hooks/useAuth";
 import { EGYPT_AUTHORITIES } from "../lib/authorities";
 import type { AuthorityType } from "../lib/authorities";
+
+// ── University wellbeing contacts ────────────────────────────────────────────
+const WELLBEING: Record<
+  Exclude<UniversityChoice, "other">,
+  { name: string; email: string; phone: string; website?: string }
+> = {
+  galala: {
+    name: "Galala University Wellbeing Center",
+    email: "wellbeing.center@gu.edu.eg",
+    phone: "+20 128 924 4460",
+  },
+  auc: {
+    name: "AUC Student Wellbeing",
+    email: "studentwellbeing@aucegypt.edu",
+    phone: "+20 2 2615 4000",
+    website: "https://www.aucegypt.edu/campus-life/student-wellbeing",
+  },
+};
 import jsPDF from "jspdf";
 
 type FullReport = IncidentReport & { case_id: string; authority_name: string };
@@ -50,7 +69,8 @@ function timelineIcon(text: string) {
 }
 
 export default function IncidentReporterPage() {
-  const { user } = useAuth();
+  const { user, university } = useAuth();
+  const wellbeing = university && university !== "other" ? WELLBEING[university] : null;
 
   const [entries, setEntries] = useState<IncidentEntry[]>([]);
   const [text, setText] = useState("");
@@ -352,6 +372,33 @@ export default function IncidentReporterPage() {
           y += 5.2;
         }
       }
+    }
+
+    // ── University Wellbeing Center (if applicable) ───────────
+    if (wellbeing) {
+      needsPage(26);
+      y += 4;
+      pdf.setFillColor(245, 240, 255);
+      pdf.setDrawColor(180, 150, 220);
+      pdf.setLineWidth(0.4);
+      const wbH = 22;
+      pdf.roundedRect(ML, y, CW, wbH, 2, 2, "FD");
+
+      const wbMid = y + wbH / 2;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(7);
+      pdf.setTextColor(100, 50, 160);
+      pdf.text("UNIVERSITY WELLBEING SUPPORT", ML + 5, wbMid - 5);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(9);
+      pdf.setTextColor(50, 20, 100);
+      pdf.text(wellbeing.name, ML + 5, wbMid + 0.5);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.setTextColor(80, 40, 130);
+      pdf.text(`${wellbeing.phone}  ·  ${wellbeing.email}`, ML + 5, wbMid + 6);
+
+      y += wbH + 6;
     }
 
     // Final footer
@@ -753,6 +800,48 @@ export default function IncidentReporterPage() {
                   </div>
                 );
               })()}
+
+              {/* University Wellbeing Center */}
+              {wellbeing && (
+                <div className="rounded-xl p-4 flex flex-col gap-2 border bg-purple-50 border-purple-200">
+                  <div className="flex items-start gap-2">
+                    <span className="text-base">🏫</span>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
+                        University Wellbeing Support
+                      </p>
+                      <p className="text-sm font-bold text-purple-900 mt-0.5">{wellbeing.name}</p>
+                      <p className="text-xs text-purple-700 mt-0.5">
+                        Your campus wellbeing center can provide confidential support and guidance.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-wrap mt-1">
+                    <a
+                      href={`tel:${wellbeing.phone}`}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white font-medium"
+                    >
+                      📞 {wellbeing.phone}
+                    </a>
+                    <a
+                      href={`mailto:${wellbeing.email}`}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-purple-300 text-purple-700 font-medium"
+                    >
+                      ✉️ {wellbeing.email}
+                    </a>
+                    {wellbeing.website && (
+                      <a
+                        href={wellbeing.website}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-purple-300 text-purple-700 font-medium"
+                      >
+                        🌐 Website
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Download */}
               {report.formal_report && (

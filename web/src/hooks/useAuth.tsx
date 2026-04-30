@@ -14,17 +14,21 @@ import {
   onAuthStateChanged,
   type User,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
+
+export type UniversityChoice = "galala" | "auc" | "other";
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   isAnonymous: boolean;
+  university: UniversityChoice | null;
   signInWithGoogle: () => Promise<void>;
   signInAsGuest: () => Promise<void>;
   linkGuestToGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  setUniversity: (val: UniversityChoice) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -32,13 +36,13 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [university, setUniversityState] = useState<UniversityChoice | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      setLoading(false);
 
-      // Ensure user doc exists in Firestore
+      // Ensure user doc exists in Firestore, read university
       if (u) {
         const ref = doc(db, "users", u.uid);
         const snap = await getDoc(ref);
@@ -49,9 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isAnonymous: u.isAnonymous,
             createdAt: serverTimestamp(),
             preferences: { theme: "light" },
+            university: null,
           });
+          setUniversityState(null);
+        } else {
+          const data = snap.data();
+          setUniversityState((data.university as UniversityChoice) ?? null);
         }
+      } else {
+        setUniversityState(null);
       }
+
+      setLoading(false);
     });
     return unsub;
   }, []);
@@ -88,16 +101,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth);
   };
 
+  const setUniversity = async (val: UniversityChoice) => {
+    if (!user) return;
+    await updateDoc(doc(db, "users", user.uid), { university: val });
+    setUniversityState(val);
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         isAnonymous: user?.isAnonymous ?? false,
+        university,
         signInWithGoogle,
         signInAsGuest,
         linkGuestToGoogle,
         signOut,
+        setUniversity,
       }}
     >
       {children}

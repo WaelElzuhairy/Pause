@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import UniversityModal from "./UniversityModal";
 import clsx from "clsx";
 
 const NAV = [
@@ -13,10 +14,12 @@ const NAV = [
 ];
 
 export default function Layout() {
-  const { user, isAnonymous, linkGuestToGoogle, signOut } = useAuth();
+  const { user, university, isAnonymous, linkGuestToGoogle, signOut } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
+      {/* University onboarding — blocks UI until answered */}
+      {user && university === null && <UniversityModal />}
       {/* Guest banner */}
       {isAnonymous && (
         <div className="bg-[var(--color-amber-50)] border-b border-[var(--color-amber-100)] px-4 py-2 flex items-center justify-between gap-4">
