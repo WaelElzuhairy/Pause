@@ -192,12 +192,13 @@ export const analyzeIncident = onCall(
     const { entries, gender, case_type, trafficking_subtype } = AnalyzeIncidentSchema.parse(request.data);
 
     const isHT = case_type === "human_trafficking";
+    const subtypeStr = trafficking_subtype ?? undefined;
 
     const ai = getProvider();
     const raw = await ai.generate({
       system: isHT ? HT_INCIDENT_SYSTEM : INCIDENT_SYSTEM,
       user: isHT
-        ? buildHumanTraffickingPrompt(entries, gender ?? "unspecified", trafficking_subtype)
+        ? buildHumanTraffickingPrompt(entries, gender ?? "unspecified", subtypeStr)
         : buildIncidentPrompt(entries, gender ?? "unspecified"),
       json: true,
       maxTokens: 3000,
