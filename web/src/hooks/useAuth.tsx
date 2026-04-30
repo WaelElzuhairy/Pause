@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -39,16 +40,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [university, setUniversityState] = useState<UniversityChoice | null>(null);
   const [universityLoaded, setUniversityLoaded] = useState(false);
+  // Ref survives StrictMode double-mount; prevents second effect run from
+  // overwriting state that the first run already resolved correctly.
+  const fetchedUid = useRef<string | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      // Always gate behind loading=true so ProtectedRoute shows spinner
-      // until Firestore resolves — prevents Layout rendering with stale state
       setLoading(true);
       setUser(u);
-      setUniversityLoaded(false);
 
       if (u) {
+        // StrictMode fires this effect twice — skip if we already fetched for this UID
+        if (fetchedUid.current === u.uid) {
+          setLoading(false);
+          return;
+        }
+        fetchedUid.current = u.uid;
+
         try {
           const ref = doc(db, "users", u.uid);
           const snap = await getDoc(ref);
@@ -72,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setUniversityLoaded(true);
       } else {
+        fetchedUid.current = null;
         setUniversityState(null);
         setUniversityLoaded(true);
       }

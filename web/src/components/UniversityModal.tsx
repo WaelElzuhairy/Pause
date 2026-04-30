@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../hooks/useAuth";
 import type { UniversityChoice } from "../hooks/useAuth";
 
@@ -29,11 +30,22 @@ export default function UniversityModal() {
     if (!selected || saving) return;
     setSaving(true);
     await setUniversity(selected);
-    // State update in useAuth will unmount this modal automatically
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+  // Use a portal so no parent CSS (overflow, stacking context, z-index) can interfere
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(0,0,0,0.55)",
+        padding: "0 1rem",
+      }}
+    >
       <div className="w-full max-w-sm bg-[var(--color-surface)] rounded-2xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="bg-[var(--color-accent)] px-6 py-5">
@@ -65,7 +77,7 @@ export default function UniversityModal() {
                   onClick={() => setSelected(opt.value)}
                   className={`text-left w-full rounded-xl border px-4 py-3 transition-colors ${
                     active
-                      ? "border-[var(--color-accent)] bg-[var(--color-accent)]/8 ring-1 ring-[var(--color-accent)]/40"
+                      ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10 ring-1 ring-[var(--color-accent)]/40"
                       : "border-[var(--color-border)] hover:border-[var(--color-accent)]/50"
                   }`}
                 >
@@ -99,6 +111,7 @@ export default function UniversityModal() {
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
