@@ -169,6 +169,16 @@ export default function IncidentReporterPage() {
         </p>
       </div>
 
+      {/* Privacy disclaimer */}
+      <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+        <span className="text-green-600 text-base mt-0.5">🔒</span>
+        <p className="text-xs text-green-800 leading-relaxed">
+          <span className="font-semibold">Your privacy is protected.</span> Everything you submit
+          is encrypted and stored privately under your account only. Your data will never be
+          shared, sold, or used to train AI models. Only you can access your case data.
+        </p>
+      </div>
+
       <div className="flex flex-col gap-4 lg:flex-row lg:gap-6 lg:items-start">
         {/* ── Left: Evidence Builder ── */}
         <div className="flex flex-col gap-4 lg:w-5/12">

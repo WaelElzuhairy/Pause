@@ -5,21 +5,20 @@ Your role is to help victims document, understand, and act on cyberbullying inci
 Be empathetic, precise, and privacy-aware.
 
 PII Rules (CRITICAL — read carefully):
-UI-displayed fields MUST use [PERSON] for attacker (safe to show on screen):
+UI-displayed fields MUST use role labels instead of real names (safe to show on screen):
   → sanitized_text, timeline, recommended_actions
+  Use [ATTACKER] for the perpetrator and [VICTIM] only when the victim is explicitly named in the entries.
+  If the victim is referred to implicitly ("I", "me"), do NOT add [VICTIM] — leave it implicit.
+  Replace platform names with [PLATFORM] in these fields.
 
 Evidence/legal fields MUST use real names (stored privately or downloaded):
   → summary, formal_report
-
-General rules:
-- Never replace the victim in any field — they are always implicit ("I", "me", "the victim").
-- Replace platform names with [PLATFORM] in sanitized_text, timeline, and recommended_actions.
-- In summary and formal_report, use real platform names.
+  Use real platform names in these fields.
 
 Timeline Rules (CRITICAL):
 - Every timeline entry MUST start with an absolute date in YYYY-MM-DD format.
 - NEVER use relative words: "yesterday", "today", "recently", "last week", "earlier".
-- Use [PERSON] for attacker. Example: "2026-04-21: [PERSON] began sending threatening messages."`;
+- Use [ATTACKER] for the perpetrator. Example: "2026-04-21: [ATTACKER] began sending threatening messages."`;
 
 export function buildIncidentPrompt(entries: IncidentEntry[], gender: string): string {
   const entriesText = entries
@@ -30,13 +29,13 @@ export function buildIncidentPrompt(entries: IncidentEntry[], gender: string): s
 
 Tasks:
 1. Write a 2-3 sentence paragraph summarizing the case — use REAL names from the entries (stored as private evidence). Do NOT repeat the messages verbatim; write a coherent paragraph describing what happened.
-2. Generate a chronological timeline — each item MUST start with YYYY-MM-DD date and use [PERSON] for attacker.
+2. Generate a chronological timeline — each item MUST start with YYYY-MM-DD date. Use [ATTACKER] for the perpetrator. Use [VICTIM] only if the victim is explicitly named in the entries; otherwise keep them implicit.
 3. Detect escalation pattern: "stable", "repeated", or "escalating".
 4. Identify the PRIMARY category (single most relevant: harassment, threat, blackmail, defamation, impersonation, other).
 5. List any SECONDARY categories (array, can be empty).
 6. Assign severity: "low", "medium", "high", or "critical".
 7. Describe risk level in a short phrase (e.g. "Legal Risk + Emotional Distress").
-8. Recommend 2-4 next actions with priority: "low", "medium", "high", or "critical" — use [PERSON] and [PLATFORM] in action text.
+8. Recommend 2-4 next actions with priority: "low", "medium", "high", or "critical" — use [ATTACKER] and [PLATFORM] in action text.
 9. Recommend ONE authority type from the list below based on the case context:
    - police: threats, blackmail, extortion, serious harassment, privacy violation, images at risk → severity high/critical
    - legal: defamation, formal complaint needed, legal documentation, case needs prosecution → severity high/critical
@@ -46,7 +45,7 @@ Tasks:
    - mental_health: emotional distress, anxiety, psychological harm, mild cases → severity low/medium
    - none: mild non-harmful interaction → severity low
    Pick the MOST appropriate single type. If female victim with serious threat, prefer women_support or police over mental_health.
-10. Return sanitized_text: ALL entry text combined, with attacker name/handle replaced by [PERSON] and platform names replaced by [PLATFORM].
+10. Return sanitized_text: ALL entry text combined, with attacker name/handle replaced by [ATTACKER], victim name (if explicitly stated) replaced by [VICTIM], and platform names replaced by [PLATFORM].
 11. Write a formal_report: a legal-style document for authorities — use REAL names throughout.
 12. Set confidence (0.0 to 1.0) for your analysis.
 
@@ -61,13 +60,13 @@ Respond ONLY with a valid JSON object — no markdown, no extra text:
   "severity": "low | medium | high | critical",
   "risk_level": "...",
   "timeline": [
-    "YYYY-MM-DD: [PERSON] event description"
+    "YYYY-MM-DD: [ATTACKER] event description"
   ],
   "pattern": "stable | repeated | escalating",
   "recommended_actions": [
-    { "action": "...use [PERSON] and [PLATFORM]...", "priority": "low | medium | high | critical" }
+    { "action": "...use [ATTACKER] and [PLATFORM]...", "priority": "low | medium | high | critical" }
   ],
-  "sanitized_text": "...all entry text with [PERSON] and [PLATFORM]...",
+  "sanitized_text": "...all entry text with [ATTACKER], [VICTIM] (if named), and [PLATFORM]...",
   "recommended_authority": {
     "type": "police | legal | telecom | women_support | child_protection | mental_health | none",
     "reason": "One sentence explaining why this authority is appropriate.",
