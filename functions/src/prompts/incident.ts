@@ -88,6 +88,99 @@ Respond ONLY with a valid JSON object — no markdown, no extra text:
 }`;
 }
 
+// ── Human Trafficking prompt ─────────────────────────────────────────────────
+
+export const HT_INCIDENT_SYSTEM = `You are an AI Case Analyst for a human trafficking support platform in Egypt.
+Your role is to help victims document, understand, and act on human trafficking incidents.
+Be empathetic, trauma-informed, and privacy-aware. Assume all information is sensitive.
+
+Subtype definitions:
+  sex_trafficking       — recruitment or coercion for sexual exploitation
+  forced_labor          — forced to work under threat, debt bondage, or deception
+  domestic_servitude    — household exploitation, withheld documents, confinement
+  child_trafficking     — any trafficking involving a minor
+  forced_criminal_activity — forced to commit crimes under coercion
+  organ_trafficking     — organ removal or sale under duress or deception
+  forced_marriage       — coerced or fraudulent marriage as a form of exploitation
+
+PII Rules (same as cyberbullying module):
+  UI-displayed fields (sanitized_text, timeline, recommended_actions) → use [TRAFFICKER] for
+  perpetrator and [VICTIM] only if victim is explicitly named; replace platforms with [PLATFORM].
+  Legal fields (summary, formal_report) → use real names throughout.
+
+Timeline Rules: every entry MUST start YYYY-MM-DD. Never use relative time words.
+Use [TRAFFICKER] (not [ATTACKER]) in all sanitized/timeline fields.`;
+
+export function buildHumanTraffickingPrompt(
+  entries: import("../schemas").IncidentEntry[],
+  gender: string,
+  subtype?: string
+): string {
+  const entriesText = entries
+    .map((e) => `[${e.timestamp}] (${e.source}): ${e.text}`)
+    .join("\n");
+
+  const subtypeNote = subtype && subtype !== ""
+    ? `The victim has identified the subtype as: ${subtype}.`
+    : "The subtype was not specified — infer it from the entries.";
+
+  return `Analyze the following human trafficking case (victim gender: ${gender}). ${subtypeNote}
+
+Tasks:
+1. Write a 2-3 sentence paragraph summarizing the case — use REAL names (stored as private evidence). Do NOT repeat messages verbatim; describe what happened coherently.
+2. Generate a chronological timeline — each item MUST start YYYY-MM-DD. Use [TRAFFICKER] for the perpetrator. Use [VICTIM] only if explicitly named.
+3. Detect escalation pattern: "stable", "repeated", or "escalating".
+4. Identify PRIMARY category (use the subtype as primary if confirmed, else: sex_trafficking, forced_labor, domestic_servitude, child_trafficking, forced_criminal_activity, organ_trafficking, forced_marriage, or "other").
+5. List SECONDARY categories (array, can be empty).
+6. Assign severity: "low", "medium", "high", or "critical". Human trafficking is never below "medium".
+7. Describe risk level (e.g. "Immediate Physical Danger + Legal Risk").
+8. Recommend 2-4 next actions with priority. Use [TRAFFICKER] and [PLATFORM] in action text.
+9. Recommend ONE authority type:
+   - police: physical threat, coercion, immediate danger → severity high/critical
+   - legal: documentation needed, prosecution, formal complaint
+   - women_support: female victim facing gender-based exploitation → severity medium/high/critical
+   - child_protection: victim is a minor → severity medium/high/critical
+   - mental_health: psychological harm, trauma support needed
+   Choose the MOST appropriate. For serious trafficking always prefer police or women_support/child_protection over mental_health.
+10. Return sanitized_text with [TRAFFICKER] replacing perpetrator name, [VICTIM] if named, [PLATFORM] replacing platforms.
+11. Write a formal_report as a structured legal document with ALL 9 sections:
+    1. CASE OVERVIEW
+    2. PARTIES INVOLVED
+    3. CHRONOLOGICAL INCIDENT NARRATIVE
+    4. EVIDENCE SUMMARY (numbered list: date, source, verbatim content)
+    5. PATTERN ANALYSIS
+    6. RISK ASSESSMENT
+    7. LEGAL CATEGORY & APPLICABLE LAWS — cite Egyptian Law No. 64 of 2010 on Combating Human Trafficking and any other applicable laws (Egyptian Penal Code, Child Law No. 12/1996 if minor involved).
+    8. RECOMMENDED ACTIONS & AUTHORITY CONTACTS — include the National Committee to Combat Illegal Immigration and Human Trafficking (NCCPIM) contact.
+    9. DECLARATION — "I declare that the information provided in this report is truthful and accurate to the best of my knowledge."
+12. Set confidence (0.0–1.0).
+
+Incident Entries:
+${entriesText}
+
+Respond ONLY with valid JSON — no markdown, no extra text:
+{
+  "summary": "...2-3 sentence paragraph with REAL names...",
+  "primary_category": "sex_trafficking | forced_labor | domestic_servitude | child_trafficking | forced_criminal_activity | organ_trafficking | forced_marriage | other",
+  "secondary_categories": ["..."],
+  "severity": "medium | high | critical",
+  "risk_level": "...",
+  "timeline": ["YYYY-MM-DD: [TRAFFICKER] event description"],
+  "pattern": "stable | repeated | escalating",
+  "recommended_actions": [
+    { "action": "...use [TRAFFICKER] and [PLATFORM]...", "priority": "low | medium | high | critical" }
+  ],
+  "sanitized_text": "...all entry text with [TRAFFICKER], [VICTIM] if named, [PLATFORM]...",
+  "recommended_authority": {
+    "type": "police | legal | women_support | child_protection | mental_health",
+    "reason": "One sentence explaining why.",
+    "action": "One sentence describing what the victim should do."
+  },
+  "formal_report": "...full 9-section legal document with REAL names...",
+  "confidence": 0.95
+}`;
+}
+
 // Post-process timeline to strip any relative time words the AI may have missed
 const RELATIVE_WORDS = [
   /\btoday\b/gi,

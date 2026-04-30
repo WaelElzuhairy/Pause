@@ -58,6 +58,8 @@ export const IncidentEntrySchema = z.object({
 export const AnalyzeIncidentSchema = z.object({
   entries: z.array(IncidentEntrySchema).min(1).max(20),
   gender: z.string().optional(),
+  case_type: z.enum(["cyberbullying", "human_trafficking", "auto"]).optional(),
+  trafficking_subtype: z.string().optional(),
 });
 
 export const IncidentReportSchema = z.object({

@@ -5,7 +5,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../hooks/useAuth";
 import type { UniversityChoice } from "../hooks/useAuth";
-import { EGYPT_AUTHORITIES } from "../lib/authorities";
+import { EGYPT_AUTHORITIES, HT_CONTACTS } from "../lib/authorities";
 import type { AuthorityType } from "../lib/authorities";
 
 // ── University wellbeing contacts ────────────────────────────────────────────
@@ -71,6 +71,9 @@ function timelineIcon(text: string) {
 export default function IncidentReporterPage() {
   const { user, university } = useAuth();
   const wellbeing = university && university !== "other" ? WELLBEING[university] : null;
+
+  const [caseType, setCaseType] = useState<"cyberbullying" | "human_trafficking" | "auto">("cyberbullying");
+  const [traffickingSubtype, setTraffickingSubtype] = useState("");
 
   const [entries, setEntries] = useState<IncidentEntry[]>([]);
   const [text, setText] = useState("");
@@ -150,7 +153,12 @@ export default function IncidentReporterPage() {
     setError("");
     setStep("AI building timeline and analyzing case…");
     try {
-      const res = await callAnalyzeIncident({ entries, gender });
+      const res = await callAnalyzeIncident({
+        entries,
+        gender,
+        case_type: caseType,
+        trafficking_subtype: traffickingSubtype || undefined,
+      });
       setReport(res.data);
       fetchPastCases();
     } catch (e) {
@@ -449,6 +457,56 @@ export default function IncidentReporterPage() {
         <div className="flex flex-col gap-4 lg:w-5/12">
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5">
             <h2 className="font-semibold text-[var(--color-text)] mb-4">Evidence Builder</h2>
+
+            {/* Case Type */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-[var(--color-text)] mb-2">Case Type</p>
+              <div className="flex flex-col gap-2">
+                {([
+                  { value: "cyberbullying", label: "Cyberbullying / Online Violence", icon: "💬" },
+                  { value: "human_trafficking", label: "Human Trafficking", icon: "🚨" },
+                  { value: "auto", label: "Let AI Decide", icon: "🤖" },
+                ] as const).map(({ value, label, icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => { setCaseType(value); if (value !== "human_trafficking") setTraffickingSubtype(""); }}
+                    className={`text-left flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-medium transition-colors ${
+                      caseType === value
+                        ? value === "human_trafficking"
+                          ? "border-red-400 bg-red-50 text-red-700"
+                          : "border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                        : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)]/40"
+                    }`}
+                  >
+                    <span>{icon}</span> {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* HT Subtype picker */}
+              {caseType === "human_trafficking" && (
+                <div className="mt-3">
+                  <p className="text-xs text-[var(--color-text-muted)] mb-1.5">Subtype (optional)</p>
+                  <select
+                    value={traffickingSubtype}
+                    onChange={(e) => setTraffickingSubtype(e.target.value)}
+                    className="w-full text-xs rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-[var(--color-text)]"
+                  >
+                    <option value="">— Let AI determine —</option>
+                    <option value="sex_trafficking">Sex Trafficking</option>
+                    <option value="forced_labor">Forced Labor</option>
+                    <option value="domestic_servitude">Domestic Servitude</option>
+                    <option value="child_trafficking">Child Trafficking</option>
+                    <option value="forced_criminal_activity">Forced Criminal Activity</option>
+                    <option value="organ_trafficking">Organ Trafficking</option>
+                    <option value="forced_marriage">Forced Marriage</option>
+                  </select>
+                  <p className="text-[10px] text-red-500 mt-1.5 leading-relaxed">
+                    🚨 If you are in immediate danger, call <strong>122</strong> (Police) or <strong>16000</strong> (Child Helpline) now.
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* Gender */}
             <div className="mb-4">
@@ -800,6 +858,56 @@ export default function IncidentReporterPage() {
                   </div>
                 );
               })()}
+
+              {/* Human Trafficking Emergency Contacts */}
+              {caseType === "human_trafficking" && (
+                <div className="rounded-xl border border-red-300 bg-red-50 p-4 flex flex-col gap-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-base">🚨</span>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                        Human Trafficking Emergency Contacts
+                      </p>
+                      <p className="text-xs text-red-600 mt-0.5">
+                        Contact these authorities immediately. Your case has been securely vaulted.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {HT_CONTACTS.map((c) => (
+                      <div key={c.id} className="bg-white rounded-lg border border-red-200 px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-red-800 leading-snug">{c.label}</p>
+                            {c.sublabel && (
+                              <p className="text-[10px] text-red-500 mt-0.5">{c.sublabel}</p>
+                            )}
+                            <p className="text-[10px] text-red-600 mt-1 leading-relaxed">{c.note}</p>
+                          </div>
+                          {c.number && (
+                            <a
+                              href={`tel:${c.number}`}
+                              className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold"
+                            >
+                              📞 {c.number}
+                            </a>
+                          )}
+                          {c.facebook && (
+                            <a
+                              href={c.facebook}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium"
+                            >
+                              Facebook
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* University Wellbeing Center */}
               {wellbeing && (

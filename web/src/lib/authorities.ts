@@ -21,6 +21,49 @@ export interface Authority {
   };
 }
 
+// ── Human Trafficking specific contacts ──────────────────────────────────────
+
+export interface HTContact {
+  id: string;
+  label: string;
+  sublabel?: string;
+  number?: string;
+  facebook?: string;
+  note: string;
+}
+
+export const HT_CONTACTS: HTContact[] = [
+  {
+    id: "police_ht",
+    label: "Police Emergency",
+    sublabel: "All trafficking types",
+    number: "122",
+    note: "Report immediately if in immediate danger or being held against your will.",
+  },
+  {
+    id: "nccm",
+    label: "National Council for Childhood & Motherhood",
+    sublabel: "Child trafficking cases",
+    number: "16000",
+    note: "24/7 child helpline — mandatory for any case involving a minor.",
+  },
+  {
+    id: "serious_crimes",
+    label: "Report Serious Crimes Hotline",
+    number: "16100",
+    note: "Dedicated hotline for reporting serious criminal activity including trafficking.",
+  },
+  {
+    id: "nccpim",
+    label: "اللجنة الوطنية لمكافحة الهجرة غير الشرعية والاتجار بالبشر",
+    sublabel: "National Committee to Combat Illegal Immigration and Human Trafficking",
+    facebook: "https://www.facebook.com/NCCPIMandTIP",
+    note: "Educational resources and official reporting channel for human trafficking cases.",
+  },
+];
+
+// ── Egypt cyberbullying authorities ──────────────────────────────────────────
+
 export const EGYPT_AUTHORITIES: Record<AuthorityType, Authority> = {
   police: {
     id: "police",

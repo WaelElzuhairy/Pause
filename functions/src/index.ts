@@ -10,7 +10,7 @@ import {
 import { ANALYZE_SYSTEM, buildAnalyzePrompt } from "./prompts/analyze";
 import { CHECKIN_SYSTEM, buildCheckinPrompt } from "./prompts/checkin";
 import { INSIGHT_SYSTEM, buildInsightPrompt } from "./prompts/insight";
-import { INCIDENT_SYSTEM, buildIncidentPrompt, normalizeTimeline } from "./prompts/incident";
+import { INCIDENT_SYSTEM, buildIncidentPrompt, normalizeTimeline, HT_INCIDENT_SYSTEM, buildHumanTraffickingPrompt } from "./prompts/incident";
 import { buildAssistantSystem, buildAssistantPrompt } from "./prompts/assistant";
 import {
   AnalyzeMessageSchema,
@@ -189,14 +189,18 @@ export const analyzeIncident = onCall(
   { region: REGION },
   async (request: CallableRequest) => {
     const uid = requireAuth(request);
-    const { entries, gender } = AnalyzeIncidentSchema.parse(request.data);
+    const { entries, gender, case_type, trafficking_subtype } = AnalyzeIncidentSchema.parse(request.data);
+
+    const isHT = case_type === "human_trafficking";
 
     const ai = getProvider();
     const raw = await ai.generate({
-      system: INCIDENT_SYSTEM,
-      user: buildIncidentPrompt(entries, gender ?? "unspecified"),
+      system: isHT ? HT_INCIDENT_SYSTEM : INCIDENT_SYSTEM,
+      user: isHT
+        ? buildHumanTraffickingPrompt(entries, gender ?? "unspecified", trafficking_subtype)
+        : buildIncidentPrompt(entries, gender ?? "unspecified"),
       json: true,
-      maxTokens: 3000, // increased for 9-section formal_report
+      maxTokens: 3000,
     });
 
     const report = parseJSON(raw, IncidentReportSchema);

@@ -81,6 +81,8 @@ export const callAnalyzeIncident = httpsCallable<
   {
     entries: IncidentEntry[];
     gender?: string;
+    case_type?: "cyberbullying" | "human_trafficking" | "auto";
+    trafficking_subtype?: string;
   },
   IncidentReport & { case_id: string; authority_name: string }
 >(functions, "analyzeIncident");
