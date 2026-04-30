@@ -42,8 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
+      // Always gate behind loading=true so ProtectedRoute shows spinner
+      // until Firestore resolves — prevents Layout rendering with stale state
+      setLoading(true);
       setUser(u);
-      setUniversityLoaded(false); // reset on each auth state change
+      setUniversityLoaded(false);
 
       if (u) {
         try {
