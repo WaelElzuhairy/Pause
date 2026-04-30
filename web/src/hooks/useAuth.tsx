@@ -24,6 +24,7 @@ interface AuthContextValue {
   loading: boolean;
   isAnonymous: boolean;
   university: UniversityChoice | null;
+  universityLoaded: boolean;
   signInWithGoogle: () => Promise<void>;
   signInAsGuest: () => Promise<void>;
   linkGuestToGoogle: () => Promise<void>;
@@ -37,31 +38,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [university, setUniversityState] = useState<UniversityChoice | null>(null);
+  const [universityLoaded, setUniversityLoaded] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      setUniversityLoaded(false); // reset on each auth state change
 
-      // Ensure user doc exists in Firestore, read university
       if (u) {
-        const ref = doc(db, "users", u.uid);
-        const snap = await getDoc(ref);
-        if (!snap.exists()) {
-          await setDoc(ref, {
-            email: u.email ?? null,
-            displayName: u.displayName ?? null,
-            isAnonymous: u.isAnonymous,
-            createdAt: serverTimestamp(),
-            preferences: { theme: "light" },
-            university: null,
-          });
+        try {
+          const ref = doc(db, "users", u.uid);
+          const snap = await getDoc(ref);
+          if (!snap.exists()) {
+            await setDoc(ref, {
+              email: u.email ?? null,
+              displayName: u.displayName ?? null,
+              isAnonymous: u.isAnonymous,
+              createdAt: serverTimestamp(),
+              preferences: { theme: "light" },
+              university: null,
+            });
+            setUniversityState(null);
+          } else {
+            const raw = snap.data().university;
+            setUniversityState(raw != null ? (raw as UniversityChoice) : null);
+          }
+        } catch (err) {
+          console.error("useAuth: Firestore error", err);
           setUniversityState(null);
-        } else {
-          const data = snap.data();
-          setUniversityState((data.university as UniversityChoice) ?? null);
         }
+        setUniversityLoaded(true);
       } else {
         setUniversityState(null);
+        setUniversityLoaded(true);
       }
 
       setLoading(false);
@@ -114,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         isAnonymous: user?.isAnonymous ?? false,
         university,
+        universityLoaded,
         signInWithGoogle,
         signInAsGuest,
         linkGuestToGoogle,

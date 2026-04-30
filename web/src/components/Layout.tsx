@@ -14,12 +14,12 @@ const NAV = [
 ];
 
 export default function Layout() {
-  const { user, university, isAnonymous, linkGuestToGoogle, signOut } = useAuth();
+  const { user, university, universityLoaded, isAnonymous, linkGuestToGoogle, signOut } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
-      {/* University onboarding — blocks UI until answered */}
-      {user && university === null && <UniversityModal />}
+      {/* University onboarding — only renders once Firestore confirmed university is unset */}
+      {user && universityLoaded && university === null && <UniversityModal />}
       {/* Guest banner */}
       {isAnonymous && (
         <div className="bg-[var(--color-amber-50)] border-b border-[var(--color-amber-100)] px-4 py-2 flex items-center justify-between gap-4">
