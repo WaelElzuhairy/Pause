@@ -146,22 +146,36 @@ export default function IncidentReporterPage() {
     if (!report?.formal_report) return;
 
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const PW = pdf.internal.pageSize.getWidth();   // 210
-    const PH = pdf.internal.pageSize.getHeight();  // 297
-    const ML = 22; // left margin
-    const MR = 22; // right margin
-    const MT = 20; // top margin
-    const MB = 20; // bottom margin
-    const CW = PW - ML - MR; // content width
+    const PW = pdf.internal.pageSize.getWidth();
+    const PH = pdf.internal.pageSize.getHeight();
+    const ML = 22;
+    const MR = 22;
+    const MT = 20;
+    const MB = 20;
+    const CW = PW - ML - MR;
     let y = MT;
 
     const now = new Date();
     const dateStr = now.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
     const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
+    // ── Strip markdown the AI may have added ──────────────────
+    const stripMd = (s: string) =>
+      s.replace(/^#{1,6}\s*/g, "")
+       .replace(/\*\*(.+?)\*\*/g, "$1")
+       .replace(/\*(.+?)\*/g, "$1")
+       .replace(/__(.+?)__/g, "$1")
+       .trim();
+
+    // Section header: after stripping, all-caps line (allows digits, dots, spaces, & / -)
+    const isSectionHeader = (raw: string) => {
+      const t = stripMd(raw);
+      return /^(\d+\.\s+)?[A-Z][A-Z0-9 &\/\-]{3,}$/.test(t);
+    };
+
     // ── Page break helper ──────────────────────────────────────
     const needsPage = (h: number) => {
-      if (y + h > PH - MB - 12) { // 12 = footer height
+      if (y + h > PH - MB - 14) {
         addFooter();
         pdf.addPage();
         y = MT;
@@ -169,40 +183,38 @@ export default function IncidentReporterPage() {
       }
     };
 
-    // ── Recurring page header (compact, after p1) ──────────────
+    // ── Compact running header (pages 2+) ─────────────────────
     const addPageHeader = () => {
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(7);
-      pdf.setTextColor(80, 80, 80);
+      pdf.setTextColor(90, 90, 90);
       pdf.text("PAUSE — OFFICIAL INCIDENT REPORT", ML, y);
       pdf.text(report!.case_id, PW - MR, y, { align: "right" });
-      y += 2;
+      y += 2.5;
       pdf.setDrawColor(180, 180, 180);
       pdf.setLineWidth(0.3);
       pdf.line(ML, y, PW - MR, y);
-      y += 6;
+      y += 7;
     };
 
-    // ── Footer helper ──────────────────────────────────────────
+    // ── Footer ────────────────────────────────────────────────
     const addFooter = () => {
-      const fy = PH - MB + 4;
-      pdf.setDrawColor(200, 200, 200);
+      const fy = PH - MB + 2;
+      pdf.setDrawColor(210, 210, 210);
       pdf.setLineWidth(0.3);
-      pdf.line(ML, fy - 2, PW - MR, fy - 2);
+      pdf.line(ML, fy, PW - MR, fy);
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(7);
-      pdf.setTextColor(150, 150, 150);
-      pdf.text(`Pause Platform  ·  Case ${report!.case_id}  ·  Generated ${dateStr}`, ML, fy + 2);
-      const pg = (pdf as jsPDF & { internal: { getCurrentPageInfo: () => { pageNumber: number } } }).internal.getCurrentPageInfo().pageNumber;
-      pdf.text(`Page ${pg}`, PW - MR, fy + 2, { align: "right" });
+      pdf.setTextColor(155, 155, 155);
+      pdf.text(`Pause Platform  ·  Case ${report!.case_id}  ·  ${dateStr}`, ML, fy + 4);
     };
 
     // ══════════════════════════════════════════════════════════
     // PAGE 1 — LETTERHEAD
     // ══════════════════════════════════════════════════════════
 
-    // Logo bar
-    pdf.setFillColor(22, 101, 52); // dark green
+    // Green header bar
+    pdf.setFillColor(22, 101, 52);
     pdf.rect(0, 0, PW, 14, "F");
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(13);
@@ -214,115 +226,124 @@ export default function IncidentReporterPage() {
 
     y = 22;
 
-    // Document title
+    // Title
     pdf.setFont("times", "bold");
     pdf.setFontSize(18);
     pdf.setTextColor(15, 15, 15);
     pdf.text("OFFICIAL INCIDENT REPORT", PW / 2, y, { align: "center" });
-    y += 5;
+    y += 5.5;
     pdf.setFont("times", "normal");
     pdf.setFontSize(9);
-    pdf.setTextColor(100, 100, 100);
+    pdf.setTextColor(110, 110, 110);
     pdf.text("Prepared for submission to legal and law enforcement authorities", PW / 2, y, { align: "center" });
-    y += 8;
+    y += 9;
 
-    // Metadata box
-    pdf.setFillColor(248, 250, 248);
-    pdf.setDrawColor(200, 220, 200);
-    pdf.setLineWidth(0.4);
-    pdf.roundedRect(ML, y, CW, 34, 2, 2, "FD");
-
-    const col1 = ML + 6;
-    const col2 = ML + CW / 2 + 3;
-    y += 6;
-
-    const metaLabel = (txt: string, x: number) => {
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(7);
-      pdf.setTextColor(90, 120, 90);
-      pdf.text(txt, x, y);
-    };
-    const metaValue = (txt: string, x: number, color?: [number, number, number]) => {
-      pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(10);
-      pdf.setTextColor(...(color ?? [15, 15, 15]));
-      pdf.text(txt, x, y + 4.5);
-    };
-
-    metaLabel("CASE ID", col1);           metaLabel("GENERATED ON", col2);
-    metaValue(report.case_id, col1);      metaValue(`${dateStr}  ${timeStr}`, col2);
-    y += 12;
-
+    // ── Metadata box — absolute positioning inside the box ────
     const sevColors: Record<string, [number, number, number]> = {
-      low: [22, 163, 74], medium: [202, 138, 4], high: [234, 88, 12], critical: [220, 38, 38],
+      low: [22, 163, 74], medium: [180, 120, 0], high: [200, 70, 10], critical: [200, 30, 30],
     };
-    metaLabel("SEVERITY", col1);           metaLabel("PATTERN", col2);
-    metaValue(report.severity.toUpperCase(), col1, sevColors[report.severity] ?? [0,0,0]);
-    metaValue(report.pattern.charAt(0).toUpperCase() + report.pattern.slice(1), col2);
-    y += 12;
+    const BOX_H = 50;
+    const boxTop = y;
+    const c1 = ML + 7;
+    const c2 = ML + CW / 2 + 4;
 
-    metaLabel("AI CONFIDENCE", col1);      metaLabel("PRIMARY CATEGORY", col2);
-    metaValue(`${Math.round(report.confidence * 100)}%`, col1);
-    metaValue(report.primary_category, col2);
-    y += 10;
+    pdf.setFillColor(247, 250, 247);
+    pdf.setDrawColor(190, 215, 190);
+    pdf.setLineWidth(0.4);
+    pdf.roundedRect(ML, boxTop, CW, BOX_H, 2.5, 2.5, "FD");
 
-    // Confidentiality box
-    pdf.setFillColor(254, 242, 242);
-    pdf.setDrawColor(252, 165, 165);
-    pdf.roundedRect(ML, y, CW, 14, 2, 2, "FD");
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(7.5);
-    pdf.setTextColor(185, 28, 28);
-    pdf.text("⚠  CONFIDENTIAL DOCUMENT", ML + 5, y + 5);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(7);
-    pdf.setTextColor(153, 27, 27);
-    const confText = "This report contains sensitive personal information. It is intended solely for the named victim and relevant legal authorities. Unauthorised disclosure is prohibited.";
-    const confLines = pdf.splitTextToSize(confText, CW - 10);
-    pdf.text(confLines, ML + 5, y + 9.5);
-    y += 20;
+    // Thin mid-line separator
+    const midY = boxTop + BOX_H / 2;
+    pdf.setDrawColor(210, 230, 210);
+    pdf.setLineWidth(0.3);
+    pdf.line(ML + 5, midY, PW - MR - 5, midY);
 
-    // Divider before body
+    // Row 1  — Case ID | Generated On
+    const r1L = boxTop + 9;   // label baseline
+    const r1V = boxTop + 15;  // value baseline
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(80, 120, 80);
+    pdf.text("CASE ID", c1, r1L);
+    pdf.text("GENERATED ON", c2, r1L);
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(11); pdf.setTextColor(15, 15, 15);
+    pdf.text(report.case_id, c1, r1V);
+    pdf.setFontSize(10);
+    pdf.text(`${dateStr}   ${timeStr}`, c2, r1V);
+
+    // Row 2  — Severity | Pattern | Confidence
+    const r2L = midY + 7;
+    const r2V = midY + 13;
+    const c3 = ML + CW * 0.66 + 4;
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(7); pdf.setTextColor(80, 120, 80);
+    pdf.text("SEVERITY", c1, r2L);
+    pdf.text("PATTERN", c2, r2L);
+    pdf.text("AI CONFIDENCE", c3, r2L);
+
+    const sev = report.severity;
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(11);
+    pdf.setTextColor(...(sevColors[sev] ?? [15, 15, 15]));
+    pdf.text(sev.toUpperCase(), c1, r2V);
+    pdf.setTextColor(15, 15, 15);
+    pdf.setFontSize(10);
+    pdf.text(report.pattern.charAt(0).toUpperCase() + report.pattern.slice(1), c2, r2V);
+    pdf.text(`${Math.round(report.confidence * 100)}%`, c3, r2V);
+
+    y = boxTop + BOX_H + 5;
+
+    // ── Confidentiality notice ────────────────────────────────
+    const confH = 13;
+    pdf.setFillColor(254, 243, 243);
+    pdf.setDrawColor(248, 180, 180);
+    pdf.setLineWidth(0.4);
+    pdf.roundedRect(ML, y, CW, confH, 2, 2, "FD");
+
+    // Label + text on same baseline row, vertically centred in the box
+    const confMidY = y + confH / 2;
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(7.5); pdf.setTextColor(180, 30, 30);
+    pdf.text("CONFIDENTIAL", ML + 5, confMidY + 1.5);
+    const labelW = pdf.getTextWidth("CONFIDENTIAL");
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(7); pdf.setTextColor(150, 40, 40);
+    const confText = "This report contains sensitive personal information intended solely for the named victim and relevant legal authorities. Unauthorised disclosure is prohibited.";
+    const confLines = pdf.splitTextToSize(confText, CW - labelW - 12);
+    // Place first line on same baseline, rest below
+    pdf.text(confLines[0] ?? "", ML + 5 + labelW + 3, confMidY + 1.5);
+    if (confLines[1]) pdf.text(confLines[1], ML + 5, confMidY + 5.5);
+
+    y += confH + 7;
+
+    // Divider
     pdf.setDrawColor(22, 101, 52);
-    pdf.setLineWidth(0.6);
+    pdf.setLineWidth(0.5);
     pdf.line(ML, y, PW - MR, y);
     y += 10;
 
     // ══════════════════════════════════════════════════════════
-    // BODY — formal_report text
+    // BODY — formal_report
     // ══════════════════════════════════════════════════════════
-
-    // Section header detector — matches "1. CASE OVERVIEW", "PARTIES INVOLVED", etc.
-    const isSectionHeader = (line: string) =>
-      /^\s*(\d+\.\s+)?[A-Z][A-Z &\/\-]{4,}\s*$/.test(line.trim());
-
     const bodyLines = report.formal_report.split("\n");
 
     for (const raw of bodyLines) {
-      const line = raw.trimEnd();
+      if (raw.trim() === "") { y += 3; continue; }
 
-      if (line.trim() === "") {
+      if (isSectionHeader(raw)) {
+        needsPage(16);
+        const title = stripMd(raw);
         y += 3;
-        continue;
-      }
-
-      if (isSectionHeader(line)) {
-        needsPage(14);
-        y += 2;
         pdf.setFont("helvetica", "bold");
         pdf.setFontSize(10.5);
         pdf.setTextColor(22, 101, 52);
-        pdf.text(line.trim(), ML, y);
-        y += 1.5;
+        pdf.text(title, ML, y);
+        y += 2;
         pdf.setDrawColor(22, 101, 52);
         pdf.setLineWidth(0.35);
         pdf.line(ML, y, PW - MR, y);
         y += 5;
       } else {
-        // indent bullet points slightly
-        const indent = /^\s*[-•\*]/.test(line) ? 4 : 0;
-        const wrap = pdf.splitTextToSize(line.trim(), CW - indent);
-        for (const wl of wrap) {
+        const cleaned = stripMd(raw);
+        const isBullet = /^[-•*]/.test(raw.trim());
+        const indent = isBullet ? 5 : 0;
+        const displayLine = isBullet ? "• " + cleaned.replace(/^[-•*]\s*/, "") : cleaned;
+        const wrapped = pdf.splitTextToSize(displayLine, CW - indent);
+        for (const wl of wrapped) {
           needsPage(5.5);
           pdf.setFont("times", "normal");
           pdf.setFontSize(10);
@@ -333,18 +354,17 @@ export default function IncidentReporterPage() {
       }
     }
 
-    // ── Final footer on last page ──────────────────────────────
+    // Final footer
     addFooter();
 
-    // ── Page numbers on all pages ──────────────────────────────
+    // Page numbers on every page
     const total = pdf.getNumberOfPages();
     for (let p = 1; p <= total; p++) {
       pdf.setPage(p);
-      const fy = PH - MB + 4;
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(7);
-      pdf.setTextColor(150, 150, 150);
-      pdf.text(`Page ${p} of ${total}`, PW - MR, fy + 2, { align: "right" });
+      pdf.setTextColor(155, 155, 155);
+      pdf.text(`Page ${p} of ${total}`, PW - MR, PH - MB + 6, { align: "right" });
     }
 
     pdf.save(`Pause_Incident_Report_${report.case_id}.pdf`);
