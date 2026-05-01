@@ -36,19 +36,46 @@ function requireAuth(request: CallableRequest): string {
   return request.auth.uid;
 }
 
+// Flatten a formal_report object (keyed by section heading) into a plain string.
+// Groq sometimes returns the 9-section report as a nested JSON object instead of a string.
+function flattenFormalReport(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([heading, body]) => `${heading}\n${typeof body === "string" ? body : JSON.stringify(body)}`)
+      .join("\n\n");
+  }
+  return String(value ?? "");
+}
+
 function parseJSON<T>(raw: string, schema: z.ZodType<T>): T {
+  const cleaned = raw
+    .replace(/^```(?:json)?\n?/, "")
+    .replace(/\n?```$/, "")
+    .trim();
+
+  let parsed: unknown;
   try {
-    const cleaned = raw
-      .replace(/^```(?:json)?\n?/, "")
-      .replace(/\n?```$/, "")
-      .trim();
-    return schema.parse(JSON.parse(cleaned));
-  } catch {
-    throw new HttpsError(
-      "internal",
-      "AI returned an unexpected response format. Please try again."
+    parsed = JSON.parse(cleaned);
+  } catch (jsonErr) {
+    console.error("parseJSON JSON.parse FAILED:", String(jsonErr), "RAW last 200:", raw.slice(-200));
+    throw new HttpsError("internal", "AI returned an unexpected response format. Please try again.");
+  }
+
+  // Groq JSON-object mode sometimes returns formal_report as a nested object.
+  // Coerce it to a string before Zod validation.
+  if (parsed && typeof parsed === "object" && "formal_report" in (parsed as object)) {
+    (parsed as Record<string, unknown>).formal_report = flattenFormalReport(
+      (parsed as Record<string, unknown>).formal_report
     );
   }
+
+  const result = schema.safeParse(parsed);
+  if (!result.success) {
+    console.error("parseJSON ZOD FAILED:", JSON.stringify(result.error.issues));
+    throw new HttpsError("internal", "AI returned an unexpected response format. Please try again.");
+  }
+  return result.data;
 }
 
 // ── analyzeMessage ────────────────────────────────────────────────────────────
@@ -254,7 +281,7 @@ export const analyzeIncident = onCall(
     try {
       report = parseJSON(raw, IncidentReportSchema);
     } catch (parseErr) {
-      console.error("analyzeIncident PARSE ERROR:", String(parseErr), "RAW (first 500):", raw.substring(0, 500));
+      console.error("analyzeIncident PARSE ERROR:", String(parseErr), "RAW (first 2000):", raw.substring(0, 2000));
       throw parseErr;
     }
 

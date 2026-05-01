@@ -83,7 +83,7 @@ Respond ONLY with a valid JSON object — no markdown, no extra text:
     "reason": "One sentence explaining why this authority is appropriate.",
     "action": "One sentence describing what the victim should do."
   },
-  "formal_report": "...full structured legal document with all 9 sections, REAL names, exact dates...",
+  "formal_report": "IMPORTANT: this must be a plain STRING (not an object). Write all 9 sections as continuous text separated by newlines. Example: '1. CASE OVERVIEW\\nOne paragraph...\\n\\n2. PARTIES INVOLVED\\nDetails...'",
   "confidence": 0.95
 }`;
 }
@@ -176,7 +176,7 @@ Respond ONLY with valid JSON — no markdown, no extra text:
     "reason": "One sentence explaining why.",
     "action": "One sentence describing what the victim should do."
   },
-  "formal_report": "...full 9-section legal document with REAL names...",
+  "formal_report": "IMPORTANT: this must be a plain STRING (not an object). Write all 9 sections as continuous text separated by newlines. Example: '1. CASE OVERVIEW\\nOne paragraph...\\n\\n2. PARTIES INVOLVED\\nDetails...'",
   "confidence": 0.95
 }`;
 }
