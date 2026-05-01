@@ -786,8 +786,8 @@ export default function IncidentReporterPage() {
                 </div>
               </div>
 
-              {/* Authority Section — driven by EGYPT_AUTHORITIES data */}
-              {(() => {
+              {/* Authority Section — hidden for HT cases (covered by HT contacts block below) */}
+              {!HT_CATEGORIES.has(report.primary_category) && caseType !== "human_trafficking" && (() => {
                 const authType = report.recommended_authority.type as AuthorityType;
                 const auth = EGYPT_AUTHORITIES[authType];
                 const isNone = authType === "none";
