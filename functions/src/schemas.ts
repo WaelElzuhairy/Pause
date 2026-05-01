@@ -58,8 +58,8 @@ export const IncidentEntrySchema = z.object({
 export const AnalyzeIncidentSchema = z.object({
   entries: z.array(IncidentEntrySchema).min(1).max(20),
   gender: z.string().optional(),
-  case_type: z.enum(["cyberbullying", "human_trafficking", "auto"]).nullish(),
-  trafficking_subtype: z.string().nullish(),
+  // case_type and trafficking_subtype are read directly from request.data
+  // to avoid Zod nullish/nullable enum issues with Firebase's undefined→null serialization
 });
 
 export const IncidentReportSchema = z.object({

@@ -189,15 +189,36 @@ export const analyzeIncident = onCall(
   { region: REGION },
   async (request: CallableRequest) => {
     const uid = requireAuth(request);
-    const { entries, gender, case_type, trafficking_subtype } = AnalyzeIncidentSchema.parse(request.data);
-
-    const isHT = case_type === "human_trafficking";
-    const subtypeStr = trafficking_subtype ?? undefined;
+    // Parse core fields via Zod; read new optional fields directly to avoid
+    // Zod nullish/nullable enum issues with Firebase's undefined→null serialization
+    const { entries, gender } = AnalyzeIncidentSchema.parse(request.data);
+    const rawData = request.data as Record<string, unknown>;
+    const caseTypeRaw = (rawData.case_type as string | null | undefined) ?? "auto";
+    const subtypeStr  = (rawData.trafficking_subtype as string | null | undefined) ?? undefined;
 
     const ai = getProvider();
+
+    // Determine effective prompt type
+    let useHT: boolean;
+    if (caseTypeRaw === "human_trafficking") {
+      useHT = true;
+    } else if (caseTypeRaw === "cyberbullying") {
+      useHT = false;
+    } else {
+      // "auto" or unrecognised — run a fast classification call (~10 tokens)
+      const entriesSnippet = entries.map((e) => e.text).join(" ").substring(0, 800);
+      const classification = await ai.generate({
+        system: "You are a case classifier. Reply with exactly one word only: 'trafficking' or 'cyberbullying'.",
+        user: `Classify this case:\n${entriesSnippet}`,
+        json: false,
+        maxTokens: 10,
+      });
+      useHT = classification.trim().toLowerCase().includes("trafficking");
+    }
+
     const raw = await ai.generate({
-      system: isHT ? HT_INCIDENT_SYSTEM : INCIDENT_SYSTEM,
-      user: isHT
+      system: useHT ? HT_INCIDENT_SYSTEM : INCIDENT_SYSTEM,
+      user: useHT
         ? buildHumanTraffickingPrompt(entries, gender ?? "unspecified", subtypeStr)
         : buildIncidentPrompt(entries, gender ?? "unspecified"),
       json: true,
