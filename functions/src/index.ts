@@ -186,46 +186,77 @@ export const generateInsight = onCall(
 // ── analyzeIncident ───────────────────────────────────────────────────────────
 
 export const analyzeIncident = onCall(
-  { region: REGION },
+  { region: REGION, timeoutSeconds: 300 },
   async (request: CallableRequest) => {
     const uid = requireAuth(request);
     // Parse core fields via Zod; read new optional fields directly to avoid
     // Zod nullish/nullable enum issues with Firebase's undefined→null serialization
-    const { entries, gender } = AnalyzeIncidentSchema.parse(request.data);
+    let entries: ReturnType<typeof AnalyzeIncidentSchema.parse>["entries"];
+    let gender: string | undefined;
+    try {
+      const parsed = AnalyzeIncidentSchema.parse(request.data);
+      entries = parsed.entries;
+      gender = parsed.gender;
+    } catch (zodErr) {
+      console.error("analyzeIncident ZOD INPUT ERROR:", JSON.stringify(zodErr));
+      throw new HttpsError("invalid-argument", "Invalid request data.");
+    }
+
     const rawData = request.data as Record<string, unknown>;
     const caseTypeRaw = (rawData.case_type as string | null | undefined) ?? "auto";
     const subtypeStr  = (rawData.trafficking_subtype as string | null | undefined) ?? undefined;
+
+    console.log("analyzeIncident START — uid:", uid, "caseType:", caseTypeRaw, "entries:", entries.length);
 
     const ai = getProvider();
 
     // Determine effective prompt type
     let useHT: boolean;
-    if (caseTypeRaw === "human_trafficking") {
-      useHT = true;
-    } else if (caseTypeRaw === "cyberbullying") {
-      useHT = false;
-    } else {
-      // "auto" or unrecognised — run a fast classification call (~10 tokens)
-      const entriesSnippet = entries.map((e) => e.text).join(" ").substring(0, 800);
-      const classification = await ai.generate({
-        system: "You are a case classifier. Reply with exactly one word only: 'trafficking' or 'cyberbullying'.",
-        user: `Classify this case:\n${entriesSnippet}`,
-        json: false,
-        maxTokens: 10,
-      });
-      useHT = classification.trim().toLowerCase().includes("trafficking");
+    try {
+      if (caseTypeRaw === "human_trafficking") {
+        useHT = true;
+      } else if (caseTypeRaw === "cyberbullying") {
+        useHT = false;
+      } else {
+        // "auto" — run a fast classification call (~10 tokens)
+        const entriesSnippet = entries.map((e) => e.text).join(" ").substring(0, 800);
+        const classification = await ai.generate({
+          system: "You are a case classifier. Reply with exactly one word only: 'trafficking' or 'cyberbullying'.",
+          user: `Classify this case:\n${entriesSnippet}`,
+          json: false,
+          maxTokens: 10,
+        });
+        useHT = classification.trim().toLowerCase().includes("trafficking");
+        console.log("analyzeIncident CLASSIFIER result:", classification.trim(), "→ useHT:", useHT);
+      }
+    } catch (classErr) {
+      console.error("analyzeIncident CLASSIFIER ERROR:", String(classErr));
+      throw new HttpsError("internal", "Classification step failed.");
     }
 
-    const raw = await ai.generate({
-      system: useHT ? HT_INCIDENT_SYSTEM : INCIDENT_SYSTEM,
-      user: useHT
-        ? buildHumanTraffickingPrompt(entries, gender ?? "unspecified", subtypeStr)
-        : buildIncidentPrompt(entries, gender ?? "unspecified"),
-      json: true,
-      maxTokens: 3000,
-    });
+    let raw: string;
+    try {
+      raw = await ai.generate({
+        system: useHT ? HT_INCIDENT_SYSTEM : INCIDENT_SYSTEM,
+        user: useHT
+          ? buildHumanTraffickingPrompt(entries, gender ?? "unspecified", subtypeStr)
+          : buildIncidentPrompt(entries, gender ?? "unspecified"),
+        json: true,
+        maxTokens: 4000,
+      });
+      console.log("analyzeIncident AI RAW length:", raw.length);
+    } catch (aiErr) {
+      console.error("analyzeIncident AI GENERATE ERROR:", String(aiErr));
+      throw new HttpsError("internal", "AI generation failed.");
+    }
 
-    const report = parseJSON(raw, IncidentReportSchema);
+    let report: z.infer<typeof IncidentReportSchema>;
+    try {
+      report = parseJSON(raw, IncidentReportSchema);
+    } catch (parseErr) {
+      console.error("analyzeIncident PARSE ERROR:", String(parseErr), "RAW (first 500):", raw.substring(0, 500));
+      throw parseErr;
+    }
 
     // Post-process: normalize timeline (remove any relative time words)
     report.timeline = normalizeTimeline(report.timeline);
