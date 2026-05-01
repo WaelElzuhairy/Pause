@@ -40,6 +40,16 @@ type PastCase = {
 };
 
 // Fix 4: Priority sort order
+const HT_CATEGORIES = new Set([
+  "sex_trafficking",
+  "forced_labor",
+  "domestic_servitude",
+  "child_trafficking",
+  "forced_criminal_activity",
+  "organ_trafficking",
+  "forced_marriage",
+]);
+
 const PRIORITY_ORDER: Record<string, number> = {
   critical: 0,
   high: 1,
@@ -859,8 +869,9 @@ export default function IncidentReporterPage() {
                 );
               })()}
 
-              {/* Human Trafficking Emergency Contacts */}
-              {caseType === "human_trafficking" && (
+              {/* Human Trafficking Emergency Contacts — shown for explicit HT selection
+                  OR when "auto" mode routes to an HT primary category */}
+              {(caseType === "human_trafficking" || HT_CATEGORIES.has(report.primary_category)) && (
                 <div className="rounded-xl border border-red-300 bg-red-50 p-4 flex flex-col gap-3">
                   <div className="flex items-start gap-2">
                     <span className="text-base">🚨</span>
