@@ -1,5 +1,9 @@
+import { useState, useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { Sun, Moon } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import AppBackground from "./AppBackground";
 import UniversityModal from "./UniversityModal";
 import clsx from "clsx";
 
@@ -16,19 +20,44 @@ const NAV = [
 export default function Layout() {
   const { user, university, universityLoaded, isAnonymous, linkGuestToGoogle, signOut } = useAuth();
 
+  // ── Theme state — read from localStorage, sync to <html class="dark"> ─────
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("pause-theme");
+    return saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("pause-theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("pause-theme", "light");
+    }
+  }, [isDark]);
+
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--color-background)]">
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--color-background)", position: "relative" }}>
+
+      {/* Animated neural background — renders behind all content on every page */}
+      <AppBackground />
+
       {/* University onboarding — only renders once Firestore confirmed university is unset */}
       {user && universityLoaded && university === null && <UniversityModal />}
+
       {/* Guest banner */}
       {isAnonymous && (
-        <div className="bg-[var(--color-amber-50)] border-b border-[var(--color-amber-100)] px-4 py-2 flex items-center justify-between gap-4">
-          <p className="text-xs text-[var(--color-amber-600)]">
+        <div
+          className="relative z-10 px-4 py-2 flex items-center justify-between gap-4 border-b"
+          style={{ background: "var(--color-surface)", borderColor: "var(--color-border)" }}
+        >
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
             You're in guest mode — your data isn't saved permanently.
           </p>
           <button
             onClick={linkGuestToGoogle}
-            className="text-xs font-medium text-[var(--color-amber-600)] underline underline-offset-2 whitespace-nowrap"
+            className="text-xs font-medium underline underline-offset-2 whitespace-nowrap"
+            style={{ color: "var(--color-accent)" }}
           >
             Save with Google
           </button>
@@ -36,41 +65,104 @@ export default function Layout() {
       )}
 
       {/* Top bar */}
-      <header className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--color-border)] px-6 h-14 flex items-center justify-between">
+      <header
+        className="sticky top-0 z-20 px-6 h-14 flex items-center justify-between border-b"
+        style={{
+          background: "var(--color-surface-float)",
+          backdropFilter: "blur(12px)",
+          borderColor: "var(--color-border)",
+        }}
+      >
+        {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[var(--color-accent)] flex items-center justify-center">
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "var(--color-accent)" }}
+          >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <rect x="6" y="4" width="4" height="16" rx="2" fill="white" />
               <rect x="14" y="4" width="4" height="16" rx="2" fill="white" />
             </svg>
           </div>
-          <span className="font-semibold text-[var(--color-text)] tracking-tight">
+          <span className="font-semibold tracking-tight" style={{ color: "var(--color-text)" }}>
             Pause
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Right side: name + theme toggle + sign out */}
+        <div className="flex items-center gap-2">
           {user?.displayName && (
-            <span className="text-sm text-[var(--color-text-muted)] hidden sm:block">
+            <span className="text-sm hidden sm:block" style={{ color: "var(--color-text-muted)" }}>
               {user.displayName.split(" ")[0]}
             </span>
           )}
+
+          {/* Theme toggle button */}
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setIsDark(!isDark)}
+            aria-label="Toggle dark mode"
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+            style={{
+              background: "var(--color-surface-raised)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              {isDark ? (
+                <motion.span
+                  key="moon"
+                  initial={{ rotate: 90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={{ rotate: -90, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ display: "flex" }}
+                >
+                  <Moon size={15} strokeWidth={2} />
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="sun"
+                  initial={{ rotate: -90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={{ rotate: 90, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ display: "flex" }}
+                >
+                  <Sun size={15} strokeWidth={2} />
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
+
           <button
             onClick={signOut}
-            className="text-xs text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] transition-colors"
+            className="text-xs transition-colors"
+            style={{ color: "var(--color-text-faint)" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "var(--color-text-muted)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-faint)")}
           >
             Sign out
           </button>
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 pb-24">
+      {/* Main content — sits above background (z-index via relative positioning) */}
+      <main className="relative z-10 flex-1 w-full max-w-2xl mx-auto px-4 py-6 pb-24">
         <Outlet />
       </main>
 
       {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-10 bg-[var(--color-surface)] border-t border-[var(--color-border)]">
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-20 border-t"
+        style={{
+          background: "var(--color-surface-float)",
+          backdropFilter: "blur(12px)",
+          borderColor: "var(--color-border)",
+        }}
+      >
         <div className="max-w-2xl mx-auto flex">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink
